@@ -1,103 +1,65 @@
-# SPIN - SMPL oPtimization IN the loop
-Code repository for the paper:  
-**Learning to Reconstruct 3D Human Pose and Shape via Model-fitting in the Loop**  
-[Nikos Kolotouros](https://www.nikoskolot.com/)\*, [Georgios Pavlakos](https://geopavlakos.github.io/)\*, [Michael J. Black](https://ps.is.mpg.de/~black), [Kostas Daniilidis](http://www.cis.upenn.edu/~kostas/)  
-ICCV 2019  
-[[paper](https://arxiv.org/pdf/1909.12828.pdf)] [[project page](https://www.nikoskolot.com/projects/spin/)]
+# 基于RK3588的高保真3D虚拟数字人构筑系统
+本项目主要包含基于嵌入式端的高保真3D虚拟人生成的完整项目，为二次拟合部分提供了全部的核心代码，将对应代码或代码文件夹覆盖源项目对应文件即可，驱动部分可参考LHM项目，该项目提供了完善的中文介绍。整体流程如下：
+![系统架构图](img.png)
+针对复现做出如下说明：
 
-![teaser](teaser.png)
+将项目中的fit_SMPLicit文件夹和SMPLicit文件夹替换SMPLicit文件夹对应文件，同时参照本项目中的SMPL类对SMPL类进行修改即可复现SMPLicit相关功能。
 
-##  [<img src="https://i.imgur.com/QCojoJk.png" width="40"> You can run the SPIN demo in Google Colab](https://colab.research.google.com/drive/1uH2JtavOtDrFl6RsipyIncCSr19GWW4x?usp=sharing)
+ppo文件夹中已经包含了一个基于nao机器人的模型重建样例，坐标参数的获取是基于前向运动学的简单计算，核心思想为针对机器人创建新的SMPL节点，进而实现机器人的SMPL重建，后续机器人驱动内容与本项目无关，且尚未开源。
 
-## Installation instructions
-#### If you want to run the inference code and these instructions are not compatible with your setup, we have updated the installation procedure and inference code to be compatible with recent cuda/pytorch versions. Please check the ``cuda11_fix`` branch.
-We suggest to use the [docker image](https://hub.docker.com/r/chaneyk/spin) we provide that has all dependencies
-compiled and preinstalled. Alternatively you can create a `python3` virtual environment and install all the relevant dependencies as follows:
+LHM项目为基于图片生成SMPL模型后将图片和SMPL模型作为输入源进行渲染，将SMPL模型替换为我们生成的含transSMPL模型即可（此处需要一个简单的SMPL版本转换）。不过需要注意的是，由于源项目的trans参数全部置0，训练后模型直接套用不会使演示效果变好。且由于源项目消耗的算力资源过于庞大，我们无法提供我们训练好的版本。
+## 环境配置
+#### 我们在examples目录下提供了完整的requirements.txt以及spin.yaml这两个分别基于pip和conda的环境配置文件，如果配置环境中仍然遇到问题，请参考以下说明
 
-```
-virtualenv spin -p python3
-source spin/bin/activate
-pip install -U pip
-pip install -r requirements.txt
-```
+首先，请不要混用SMPLicit或SPIN或LHM或其他项目的环境，我们已经明确的标注了各个数据库所需要的版本。
 
-If you choose to use a virtual environment, please look at the [instructions](https://pyrender.readthedocs.io/en/latest/install/index.html) for installing pyrender. 
+如果您希望基于嵌入式端进行实现，torch，opencv-python，以及scipy等库可能无法安装我们依赖文件中的版本，此时安装arm架构支持的最低版本即可。部分数据库需要修改具体内容进行安装，此时参照ai提供的提示进行修改即可。（所需修改都很简单）
 
-After finishing with the installation, you can continue with running the demo/evaluation/training code.
-In case you want to evaluate our approach on Human3.6M, you also need to manually install the [pycdf package of the spacepy library](https://pythonhosted.org/SpacePy/pycdf.html) to process some of the original files. If you face difficulties with the installation, you can find more elaborate instructions [here](https://stackoverflow.com/questions/37232008/how-read-common-data-formatcdf-in-python).
+请确保您在最后环境中所包含的版本与我们提供的文件中一致，此时会出现一个数据库之间版本不匹配的报错，但是这一报错不会有实际影响。请预先确认这一报错，此报错在您为嵌入式端配置环境时也会出现。
 
-## Fetch data
-We provide a script to fetch the necessary data for training and evaluation. You need to run:
-```
-./fetch_data.sh
-```
-The GMM prior is trained and provided by the original [SMPLify work](http://smplify.is.tue.mpg.de/), while the implementation of the GMM prior function follows the [SMPLify-X work](https://github.com/vchoutas/smplify-x). Please respect the license of the respective works.
+## 文件获取
+本项目中已经包含了执行所需的全部其他文件，您无需通过执行.sh文件去获取一些数据
 
-Besides these files, you also need to download the *SMPL* model. You will need the [neutral model](http://smplify.is.tue.mpg.de) for training and running the demo code, while the [male and female models](http://smpl.is.tue.mpg.de) will be necessary for evaluation on the 3DPW dataset. Please go to the websites for the corresponding projects and register to get access to the downloads section. In case you need to convert the models to be compatible with python3, please follow the instructions [here](https://github.com/vchoutas/smplx/tree/master/tools).
 
-## Final fits
-We also release the improved fits that our method produced at the end of SPIN training. You can download them from [here](http://visiondata.cis.upenn.edu/spin/spin_fits.tar.gz). Each .npz file contains the pose and shape parameters of the SMPL model for the training examples, following the order of the training .npz files. For each example, a flag is also included, indicating whether the quality of the fit is acceptable for training (following an automatic heuristic based on the joints reprojection error).
+## 项目执行
+我们提供了三个重要的执行文件，demo.py，GradientDescentRun.py以及fit_SMPLicit.py
 
-## Run demo code
-To run our method, you need a bounding box around the person. The person needs to be centered inside the bounding box and the bounding box should be relatively tight. You can either supply the bounding box directly or provide an [OpenPose](https://github.com/CMU-Perceptual-Computing-Lab/openpose) detection file. In the latter case we infer the bounding box from the detections.
+其中demo.py和GradientDescentRun.py可以在本项目中直接执行，fit_SMPLicit.py请参照SMPLciit项目的执行逻辑
 
-In summary, we provide 3 different ways to use our demo code and models:
-1. Provide only an input image (using ```--img```), in which case it is assumed that it is already cropped with the person centered in the image.
-2. Provide an input image as before, together with the OpenPose detection .json (using ```--openpose```). Our code will use the detections to compute the bounding box and crop the image.
-3. Provide an image and a bounding box (using ```--bbox```). The expected format for the json file can be seen in ```examples/im1010_bbox.json```.
+从演示效果来说，您可以直接执行以下语句获得最基本的演示效果，其中会生成两张SMPL建模效果图以及SMPL模型文件，该文件可通过meshlab或blender等工具直接执行
+，生成的文件会保存至examples文件夹下
 
-Example with OpenPose detection .json
-```
-python3 demo.py --checkpoint=data/model_checkpoint.pt --img=examples/im1010.jpg --openpose=examples/im1010_openpose.json
-```
-Example with predefined Bounding Box
-```
-python3 demo.py --checkpoint=data/model_checkpoint.pt --img=examples/im1010.jpg --bbox=examples/im1010_bbox.json
-```
-Example with cropped and centered image
-```
 python3 demo.py --checkpoint=data/model_checkpoint.pt --img=examples/im1010.jpg
-```
 
-Running the previous command will save the results in ```examples/im1010_{shape,shape_side}.png```. The file  ```im1010_shape.png``` shows the overlayed reconstruction of the model on the image.  We also render a side view, saved in ```im1010_shape_side.png```.
+## 参考项目
+在本项目中我们主要参考了以下项目
 
-## Run evaluation code
-Besides the demo code, we also provide code to evaluate our models on the datasets we employ for our empirical evaluation. Before continuing, please make sure that you follow the [details for data preprocessing](datasets/preprocess/README.md).
+    @inproceedings{kolotouros2019spin,
+    title={Learning to Reconstruct 3D Human Pose and Shape via Model-fitting in the Loop},
+    author={Nikos Kolotouros and Georgios Pavlakos and Michael J. Black and Kostas Daniilidis},
+    booktitle={ICCV},
+    year={2019}
+    }
 
-Example usage:
-```
-python3 eval.py --checkpoint=data/model_checkpoint.pt --dataset=h36m-p1 --log_freq=20
-```
-Running the above command will compute the MPJPE and Reconstruction Error on the Human3.6M dataset (Protocol I). The ```--dataset``` option can take different values based on the type of evaluation you want to perform:
-1. Human3.6M Protocol 1 ```--dataset=h36m-p1```
-2. Human3.6M Protocol 2 ```--dataset=h36m-p2```
-3. 3DPW ```--dataset=3dpw```
-4. LSP ```--dataset=lsp```
-5. MPI-INF-3DHP ```--dataset=mpi-inf-3dhp```
 
-You can also save the results (predicted SMPL parameters, camera and 3D pose) in a .npz file using ```--result=out.npz```.
+    @inproceedings{qiu2025LHM,
+    title={LHM: Large Animatable Human Reconstruction Model from a Single Image in Seconds},
+    author={Lingteng Qiu and Xiaodong Gu and Peihao Li and Qi Zuo and Weichao Shen and Junfei Zhang and Kejie Qiu and Weihao Yuan and Guanying Chen and Zilong Dong and Liefeng Bo},
+    booktitle={arXiv preprint arXiv:2503.10625},
+    year={2025}
+    }
 
-For the MPI-INF-3DHP dataset specifically, we include evaluation code only for MPJPE (before and after alignment). If
-you want to evaluate on all metrics reported in the paper you should use the official MATLAB test code provided with the
-dataset together with the saved detections.
+    @inproceedings{corona2021smplicit,
+    title={SMPLicit: Topology-aware Generative Model for Clothed People},
+    author={Enric Corona and Albert Pumarola and Guillem Aleny{\`a} and Gerard Pons-Moll and Francesc Moreno-Noguer},
+    booktitle={CVPR},
+    year={2021}
+    }
+    
+      @inproceedings{he2024learning,
+    title={Learning Human-to-Humanoid Real-Time Whole-Body Teleoperation},
+    author={Tairan He and Zhengyi Luo and Wenli Xiao and Chong Zhang and Kris Kitani and Changliu Liu and Guanya Shi},
+    journal={arXiv preprint arXiv:2403.04436},
+    year={2024}
+    }
 
-## Run training code
-Due to license limitiations, we cannot provide the SMPL parameters for Human3.6M (recovered using [MoSh](http://mosh.is.tue.mpg.de)). Even if you do not have access to these parameters, you can still use our training code using data from the other datasets. Again, make sure that you follow the [details for data preprocessing](datasets/preprocess/README.md).
-
-Example usage:
-```
-python3 train.py --name train_example --pretrained_checkpoint=data/model_checkpoint.pt --run_smplify
-```
-You can view the full list of command line options by running `python3 train.py --help`. The default values are the ones used to train the models in the paper.
-Running the above command will start the training process. It will also create the folders `logs` and `logs/train_example` that are used to save model checkpoints and Tensorboard logs.
-If you start a Tensborboard instance pointing at the directory `logs` you should be able to look at the logs stored during training.
-
-## Citing
-If you find this code useful for your research or the use data generated by our method, please consider citing the following paper:
-
-	@Inproceedings{kolotouros2019spin,
-	  Title          = {Learning to Reconstruct 3D Human Pose and Shape via Model-fitting in the Loop},
-	  Author         = {Kolotouros, Nikos and Pavlakos, Georgios and Black, Michael J and Daniilidis, Kostas},
-	  Booktitle      = {ICCV},
-	  Year           = {2019}
-	}
